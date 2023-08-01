@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function Square({ value, onSquareClick }) {
   return (
@@ -8,18 +8,26 @@ function Square({ value, onSquareClick }) {
   );
 }
 
-function Board({ xIsNext, squares, onPlay }) {
-  function handleClick(i) {
+function Board({ xIsNext, squares, onPlay, token }) {
+  function handleClick(token, i) {
+    console.log(`token: ${token},move: ${i}`);
+    move(token, i);
+    get_board(token).then( json => {
+      onPlay(json);
+      console.log(json);
+    });
+    /*
     if (calculateWinner(squares) || squares[i]) {
       return;
     }
-    const nextSquares = squares.slice();
+    //const nextSquares = squares.slice();
     if (xIsNext) {
       nextSquares[i] = 'X';
     } else {
       nextSquares[i] = 'O';
     }
-    onPlay(nextSquares);
+    */
+    //onPlay(nextSquares);
   }
 
   const winner = calculateWinner(squares);
@@ -34,32 +42,40 @@ function Board({ xIsNext, squares, onPlay }) {
     <>
       <div className="status">{status}</div>
       <div className="board-row">
-        <Square value={squares[0]} onSquareClick={() => handleClick(0)} />
-        <Square value={squares[1]} onSquareClick={() => handleClick(1)} />
-        <Square value={squares[2]} onSquareClick={() => handleClick(2)} />
+        <Square value={squares[0]} onSquareClick={() => handleClick(token, 0)} />
+        <Square value={squares[1]} onSquareClick={() => handleClick(token, 1)} />
+        <Square value={squares[2]} onSquareClick={() => handleClick(token, 2)} />
       </div>
       <div className="board-row">
-        <Square value={squares[3]} onSquareClick={() => handleClick(3)} />
-        <Square value={squares[4]} onSquareClick={() => handleClick(4)} />
-        <Square value={squares[5]} onSquareClick={() => handleClick(5)} />
+        <Square value={squares[3]} onSquareClick={() => handleClick(token, 3)} />
+        <Square value={squares[4]} onSquareClick={() => handleClick(token, 4)} />
+        <Square value={squares[5]} onSquareClick={() => handleClick(token, 5)} />
       </div>
       <div className="board-row">
-        <Square value={squares[6]} onSquareClick={() => handleClick(6)} />
-        <Square value={squares[7]} onSquareClick={() => handleClick(7)} />
-        <Square value={squares[8]} onSquareClick={() => handleClick(8)} />
+        <Square value={squares[6]} onSquareClick={() => handleClick(token, 6)} />
+        <Square value={squares[7]} onSquareClick={() => handleClick(token, 7)} />
+        <Square value={squares[8]} onSquareClick={() => handleClick(token, 8)} />
       </div>
     </>
   );
 }
 
-function GameList() {  
+function GameList({ setToken }) {  
   const [gameList, setGameList] = useState([]);
   function join(uid) {
+    join_game(uid).then( json => {
+      setToken(json.game);
+      console.log(json.game);
+    });
     console.log(`join ${uid}`)
   }
   function update() {
     fetch_games().then( games => setGameList(games));
+    console.log("update!");
   }
+  useEffect(() => {
+    update();
+  }, []);
   return (
     <>
     <ol>
@@ -81,6 +97,7 @@ function GameList() {
 export default function Game() {
   const [history, setHistory] = useState([Array(9).fill(null)]);
   const [currentMove, setCurrentMove] = useState(0);
+  const [token, setToken] = useState('');
   const xIsNext = currentMove % 2 === 0;
   const currentSquares = history[currentMove];
 
@@ -93,7 +110,6 @@ export default function Game() {
   function jumpTo(nextMove) {
     setCurrentMove(nextMove);
   }
-
 
   const moves = history.map((squares, move) => {
     let description;
@@ -112,11 +128,12 @@ export default function Game() {
 
   return (
     <div className="game">
+      token="{token}"
       <div className="game-board">
-        <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} />
+        <Board xIsNext={xIsNext} squares={currentSquares} onPlay={handlePlay} token={token} />
       </div>
       <div className="game-list">
-        <GameList />
+        <GameList setToken={(token) => setToken(token)}/>
       </div>
       <div className="game-info">
         <ol>{moves}</ol>
@@ -152,4 +169,53 @@ function fetch_games() {
      console.log(json);
      return json;
    });
+}
+
+function join_game(uid) {
+  console.log(uid);
+  return fetch("http://localhost:3000/game.join", {
+    method: "POST",
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(uid)
+  })
+    .then( response => response.json() )
+    .then( json =>  {
+      console.log(json);
+      return json;
+    });
+}
+
+function move(token, position) {
+  return fetch("http://localhost:3000/game.move", {
+    method: "POST",
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({'game': token, 'move': position})
+  })
+    .then( response => response.json() )
+    .then( json =>  {
+      console.log(json);
+      return json;
+    });
+}
+
+function get_board(token) {
+  return fetch("http://localhost:3000/game.board", {
+    method: "POST",
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(token)
+  })
+    .then( response => response.json() )
+    .then( json =>  {
+      console.log(json);
+      return json;
+    });
 }
