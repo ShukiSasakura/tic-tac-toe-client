@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import useSWR from 'swr'
 
 function Square({ value, onSquareClick }) {
   return (
@@ -11,10 +12,11 @@ function Square({ value, onSquareClick }) {
 function Board({ xIsNext, squares, onPlay, token }) {
   function handleClick(token, i) {
     console.log(`token: ${token},move: ${i}`);
-    move(token, i);
-    get_board(token).then( json => {
-      onPlay(json);
-      console.log(json);
+    move(token, i).then( json => {
+      get_board(token).then( json => {
+        onPlay(json);
+        console.log(json);
+      });
     });
     /*
     if (calculateWinner(squares) || squares[i]) {
@@ -29,6 +31,15 @@ function Board({ xIsNext, squares, onPlay, token }) {
     */
     //onPlay(nextSquares);
   }
+
+  useSWR(
+    token, 
+    (token) => get_board(token).then( json => {
+      onPlay(json);
+      console.log(json);
+    }), 
+    {refreshInterval: 5000}
+  );
 
   const winner = calculateWinner(squares);
   let status;
@@ -102,9 +113,11 @@ export default function Game() {
   const currentSquares = history[currentMove];
 
   function handlePlay(nextSquares) {
-    const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
-    setHistory(nextHistory);
-    setCurrentMove(nextHistory.length - 1);
+    if(JSON.stringify(nextSquares) != JSON.stringify(history[history.length - 1])){
+      const nextHistory = [...history.slice(0, currentMove + 1), nextSquares];
+      setHistory(nextHistory);
+      setCurrentMove(nextHistory.length - 1);
+    }
   }
 
   function jumpTo(nextMove) {
